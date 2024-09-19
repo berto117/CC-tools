@@ -1,0 +1,68 @@
+import pandas as pd
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from tkinter import ttk
+
+# Function to load Excel file
+def load_excel(file_path):
+    try:
+        df = pd.read_excel(file_path)
+        return df
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to load the Excel file.\n{e}")
+        return None
+
+# Function to identify failed jobs
+def identify_failed_jobs(df):
+    return df[df['Job Status'] == 'Failed']
+
+# Function to display failed jobs in the GUI
+def display_failed_jobs(df):
+    failed_jobs = identify_failed_jobs(df)
+    if failed_jobs.empty:
+        messagebox.showinfo("No Failed Jobs", "No failed jobs found.")
+    else:
+        # Clear the treeview before adding new results
+        for row in tree.get_children():
+            tree.delete(row)
+
+        # Add each failed job to the treeview
+        for index, row in failed_jobs.iterrows():
+            tree.insert('', 'end', values=(row['Job ID'], row['Service'], row['Team'], row['Severity']))
+
+# Function to browse and load the Excel file
+def browse_file():
+    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
+    if file_path:
+        df = load_excel(file_path)
+        if df is not None:
+            display_failed_jobs(df)
+
+# Set up the GUI window
+window = tk.Tk()
+window.title("Failed Jobs Tracker")
+
+# Create and place widgets in the window
+label = tk.Label(window, text="Load an Excel file to check for failed jobs:")
+label.pack(pady=10)
+
+load_button = tk.Button(window, text="Browse Excel File", command=browse_file)
+load_button.pack(pady=5)
+
+# Set up the table (treeview) to display results
+tree = ttk.Treeview(window, columns=("Job ID", "Service", "Team", "Severity"), show="headings", height=10)
+tree.heading("Job ID", text="Job ID")
+tree.heading("Service", text="Service")
+tree.heading("Team", text="Team")
+tree.heading("Severity", text="Severity")
+
+tree.column("Job ID", width=100)
+tree.column("Service", width=200)
+tree.column("Team", width=150)
+tree.column("Severity", width=100)
+
+tree.pack(pady=20)
+
+# Run the application
+window.mainloop()
+
