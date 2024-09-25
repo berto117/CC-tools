@@ -4,9 +4,9 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 
 # Function to load Excel file
-def load_excel(file_path):
+def load_excel(https://partnernetheb-my.sharepoint.com/personal/a109835_heb_com/Documents/Distributed%20PDP%20database%20.xlsx?web=1):
     try:
-        df = pd.read_excel(file_path)
+        df = pd.read_excel(https://partnernetheb-my.sharepoint.com/personal/a109835_heb_com/Documents/Distributed%20PDP%20database%20.xlsx?web=1)
         return df
     except Exception as e:
         messagebox.showerror("Error", f"Failed to load the Excel file.\n{e}")
