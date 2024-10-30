@@ -1,68 +1,168 @@
+import os
+import sys
 import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, messagebox
-from tkinter import ttk
+from tkinter import messagebox, filedialog
 
-# Function to load Excel file
-def load_excel(https://partnernetheb-my.sharepoint.com/personal/a109835_heb_com/Documents/Distributed%20PDP%20database%20.xlsx?web=1):
+# Function to get the correct path for resources, works both for development and PyInstaller .exe
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
-        df = pd.read_excel(https://partnernetheb-my.sharepoint.com/personal/a109835_heb_com/Documents/Distributed%20PDP%20database%20.xlsx?web=1)
-        return df
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to load the Excel file.\n{e}")
-        return None
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
 
-# Function to identify failed jobs
-def identify_failed_jobs(df):
-    return df[df['Job Status'] == 'Failed']
+    return os.path.join(base_path, relative_path)
 
-# Function to display failed jobs in the GUI
-def display_failed_jobs(df):
-    failed_jobs = identify_failed_jobs(df)
-    if failed_jobs.empty:
-        messagebox.showinfo("No Failed Jobs", "No failed jobs found.")
-    else:
-        # Clear the treeview before adding new results
-        for row in tree.get_children():
-            tree.delete(row)
+# Class to handle the job database from an Excel file
+class JobDatabaseTool:
+    def __init__(self, excel_file=None):
+        self.data = None
+        if excel_file:
+            self.load_data(excel_file)
+    
+    def load_data(self, excel_file):
+        try:
+            # Check file extension
+            if excel_file.endswith('.xlsx'):
+                self.data = pd.read_excel(excel_file, engine='openpyxl')  # .xlsx
+            elif excel_file.endswith('.xls'):
+                self.data = pd.read_excel(excel_file, engine='xlrd')  # .xls
+            elif excel_file.endswith('.csv'):
+                self.data = pd.read_csv(excel_file)  # .csv
+            else:
+                raise ValueError("Unsupported file format. Please select an .xlsx, .xls, or .csv file.")
+            return True
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load file: {e}")
+            return False
 
-        # Add each failed job to the treeview
-        for index, row in failed_jobs.iterrows():
-            tree.insert('', 'end', values=(row['Job ID'], row['Service'], row['Team'], row['Severity']))
+    def get_job_info(self, job_name):
+        if self.data is None:
+            return None
 
-# Function to browse and load the Excel file
-def browse_file():
-    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
-    if file_path:
-        df = load_excel(file_path)
-        if df is not None:
-            display_failed_jobs(df)
+        # Convert both the job_name input and the "Job" column to lowercase for case-insensitive search
+        lowercased_job_name = job_name.lower()
+        lowercased_job_data = self.data['Job'].str.lower()
 
-# Set up the GUI window
-window = tk.Tk()
-window.title("Failed Jobs Tracker")
+        # Find the row where the job name matches (case-insensitive)
+        job_row = self.data[lowercased_job_data == lowercased_job_name]
 
-# Create and place widgets in the window
-label = tk.Label(window, text="Load an Excel file to check for failed jobs:")
-label.pack(pady=10)
+        # If a matching job is found, return the details
+        if not job_row.empty:
+            return {
+                'Job': job_row.iloc[0]['Job'],
+                'Service': job_row.iloc[0]['Service'],
+                'Service Offering': job_row.iloc[0]['Service Offering'],
+                'Team': job_row.iloc[0]['Team'],
+                'Criticality': job_row.iloc[0]['Criticality']
+            }
+        else:
+            return None
 
-load_button = tk.Button(window, text="Browse Excel File", command=browse_file)
-load_button.pack(pady=5)
+# Class to create the GUI
+class JobSearchApp:
+    def __init__(self, root, job_tool, initial_file):
+        self.root = root
+        self.job_tool = job_tool
+        
+        # Set window title and initial size
+        root.title("Job Search Tool")
+        root.geometry('500x400')  # Set width to 500 and height to 400 for easier interaction
+        
+        # Create a label and search box
+        self.label = tk.Label(root, text="Enter Job Name:")
+        self.label.pack(pady=10)
+        
+        self.entry = tk.Entry(root)
+        self.entry.pack(pady=10)
 
-# Set up the table (treeview) to display results
-tree = ttk.Treeview(window, columns=("Job ID", "Service", "Team", "Severity"), show="headings", height=10)
-tree.heading("Job ID", text="Job ID")
-tree.heading("Service", text="Service")
-tree.heading("Team", text="Team")
-tree.heading("Severity", text="Severity")
+        # Bind the Enter key to search the job
+        self.entry.bind('<Return>', self.search_job_enter)
 
-tree.column("Job ID", width=100)
-tree.column("Service", width=200)
-tree.column("Team", width=150)
-tree.column("Severity", width=100)
+        # Create a button to trigger the search
+        self.search_button = tk.Button(root, text="Search Job", command=self.search_job)
+        self.search_button.pack(pady=10)
+        
+        # Labels to display the job details
+        self.job_label = tk.Label(root, text="", font=('Helvetica', 12, 'bold'))
+        self.job_label.pack(pady=5)
 
-tree.pack(pady=20)
+        self.service_label = tk.Label(root, text="")
+        self.service_label.pack(pady=5)
 
-# Run the application
-window.mainloop()
+        self.service_offering_label = tk.Label(root, text="")
+        self.service_offering_label.pack(pady=5)
 
+        self.team_label = tk.Label(root, text="")
+        self.team_label.pack(pady=5)
+
+        self.criticality_label = tk.Label(root, text="")
+        self.criticality_label.pack(pady=5)
+        
+        # Initialize the loaded file label
+        self.loaded_file_label = tk.Label(root, text="No file loaded", fg="red")
+        self.loaded_file_label.pack(pady=5)
+
+        # Automatically load the initial file if provided
+        if initial_file:
+            success = self.job_tool.load_data(initial_file)
+            if success:
+                self.loaded_file_label.config(text=f"Loaded: {initial_file}", fg="green")
+            else:
+                self.loaded_file_label.config(text="Failed to load file", fg="red")
+
+    def search_job(self):
+        job_name = self.entry.get()
+        
+        # Get job info from the tool
+        job_info = self.job_tool.get_job_info(job_name)
+        
+        # Clear any previous data
+        self.clear_labels()
+        
+        if self.job_tool.data is None:
+            messagebox.showerror("Error", "No file loaded. Please load a file first.")
+            return
+        
+        # If job found, display the details in labels, otherwise show error message
+        if job_info:
+            self.job_label.config(text=f"Job: {job_info['Job']}")
+            self.service_label.config(text=f"Service: {job_info['Service']}")
+            self.service_offering_label.config(text=f"Service Offering: {job_info['Service Offering']}")
+            self.team_label.config(text=f"Team: {job_info['Team']}")
+            self.criticality_label.config(text=f"Criticality: {job_info['Criticality']}")
+        else:
+            messagebox.showerror("Error", f"Job '{job_name}' not found.")
+
+    # Method to handle Enter key press event
+    def search_job_enter(self, event):
+        self.search_job()
+
+    def clear_labels(self):
+        self.job_label.config(text="")
+        self.service_label.config(text="")
+        self.service_offering_label.config(text="")
+        self.team_label.config(text="")
+        self.criticality_label.config(text="")
+
+# Main function to run the app
+def main():
+    # Path to the Excel file to be loaded initially, dynamically found using resource_path
+    initial_file = r"P:\InformationSolutions\Operations\ServiceDesk\Command Center\PDP\Master Distributed PDP Chart Database.xlsx"  # Ensure the file is included in the bundle
+    
+    # Initialize job database tool with the initial file
+    job_tool = JobDatabaseTool()
+    
+    # Create the main window
+    root = tk.Tk()
+    
+    # Initialize the app, passing the initial file
+    app = JobSearchApp(root, job_tool, initial_file)
+    
+    # Run the GUI loop
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
