@@ -4,6 +4,12 @@ import pandas as pd
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
+# These imports bring in essential libraries:
+# - `os` and `sys` handle file paths and system operations.
+# - `pandas` allows for handling and manipulation of Excel and CSV files.
+# - `tkinter` enables GUI creation, and `messagebox` and `filedialog` manage message pop-ups and file selection dialogs.
+# If any of these were removed, relevant functions (like file handling or GUI features) would fail.
+
 # Function to get the correct path for resources, works both for development and PyInstaller .exe
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -15,22 +21,27 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+# This function allows the code to find resources both when run directly and when compiled with PyInstaller.
+# It checks if `_MEIPASS` exists (used by PyInstaller); if not, it defaults to the script's directory.
+# Commenting this out would prevent the program from finding files when running as an executable.
+# Testing: Run the app both in development and as an executable; files should load correctly in both cases.
+
 # Class to handle the job database from an Excel file
 class JobDatabaseTool:
     def __init__(self, excel_file=None):
-        self.data = None
+        self.data = None  # Initializes the data as empty; filled when loading an Excel or CSV file
         if excel_file:
-            self.load_data(excel_file)
-    
+            self.load_data(excel_file)  # Loads data from the provided file if specified
+
     def load_data(self, excel_file):
         try:
-            # Check file extension
+            # Check file extension and load data based on file type
             if excel_file.endswith('.xlsx'):
-                self.data = pd.read_excel(excel_file, engine='openpyxl')  # .xlsx
+                self.data = pd.read_excel(excel_file, engine='openpyxl')  # For .xlsx files
             elif excel_file.endswith('.xls'):
-                self.data = pd.read_excel(excel_file, engine='xlrd')  # .xls
+                self.data = pd.read_excel(excel_file, engine='xlrd')  # For .xls files
             elif excel_file.endswith('.csv'):
-                self.data = pd.read_csv(excel_file)  # .csv
+                self.data = pd.read_csv(excel_file)  # For .csv files
             else:
                 raise ValueError("Unsupported file format. Please select an .xlsx, .xls, or .csv file.")
             return True
@@ -38,11 +49,16 @@ class JobDatabaseTool:
             messagebox.showerror("Error", f"Failed to load file: {e}")
             return False
 
+    # This class manages loading job data from a file.
+    # It checks the file extension to use the correct method (Excel or CSV).
+    # If removed, job data would not load, and searches would always fail.
+    # Testing: Load various file types and confirm that data is displayed or errors appear for unsupported formats.
+
     def get_job_info(self, job_name):
         if self.data is None:
             return None
 
-        # Convert both the job_name input and the "Job" column to lowercase for case-insensitive search
+        # Convert both job_name input and the "Job" column to lowercase for case-insensitive search
         lowercased_job_name = job_name.lower()
         lowercased_job_data = self.data['Job'].str.lower()
 
@@ -61,20 +77,24 @@ class JobDatabaseTool:
         else:
             return None
 
+    # This method allows for searching job information by job name in a case-insensitive manner.
+    # If commented out, searching would return `None`, as job info wouldn’t be accessible.
+    # Testing: Use both uppercase and lowercase variations of job names to confirm case insensitivity.
+
 # Class to create the GUI
 class JobSearchApp:
     def __init__(self, root, job_tool, initial_file):
         self.root = root
         self.job_tool = job_tool
-        
+
         # Set window title and initial size
         root.title("Job Search Tool")
         root.geometry('500x400')  # Set width to 500 and height to 400 for easier interaction
-        
+
         # Create a label and search box
         self.label = tk.Label(root, text="Enter Job Name:")
         self.label.pack(pady=10)
-        
+
         self.entry = tk.Entry(root)
         self.entry.pack(pady=10)
 
@@ -84,7 +104,7 @@ class JobSearchApp:
         # Create a button to trigger the search
         self.search_button = tk.Button(root, text="Search Job", command=self.search_job)
         self.search_button.pack(pady=10)
-        
+
         # Labels to display the job details
         self.job_label = tk.Label(root, text="", font=('Helvetica', 12, 'bold'))
         self.job_label.pack(pady=5)
@@ -100,7 +120,7 @@ class JobSearchApp:
 
         self.criticality_label = tk.Label(root, text="")
         self.criticality_label.pack(pady=5)
-        
+
         # Initialize the loaded file label
         self.loaded_file_label = tk.Label(root, text="No file loaded", fg="red")
         self.loaded_file_label.pack(pady=5)
@@ -113,19 +133,23 @@ class JobSearchApp:
             else:
                 self.loaded_file_label.config(text="Failed to load file", fg="red")
 
+    # This class sets up the GUI for job searching and displaying results.
+    # Commenting out elements (like labels or buttons) would impact the interface, making it harder to use or missing key elements.
+    # Testing: Try interacting with each button and entering text to ensure all controls work as expected.
+
     def search_job(self):
         job_name = self.entry.get()
         
         # Get job info from the tool
         job_info = self.job_tool.get_job_info(job_name)
-        
+
         # Clear any previous data
         self.clear_labels()
-        
+
         if self.job_tool.data is None:
             messagebox.showerror("Error", "No file loaded. Please load a file first.")
             return
-        
+
         # If job found, display the details in labels, otherwise show error message
         if job_info:
             self.job_label.config(text=f"Job: {job_info['Job']}")
@@ -136,9 +160,12 @@ class JobSearchApp:
         else:
             messagebox.showerror("Error", f"Job '{job_name}' not found.")
 
-    # Method to handle Enter key press event
+    # This method retrieves and displays job information based on user input.
+    # If removed, the app would not be able to show job results.
+    # Testing: Enter valid and invalid job names and verify that results display or error messages appear.
+
     def search_job_enter(self, event):
-        self.search_job()
+        self.search_job()  # Trigger search on pressing Enter
 
     def clear_labels(self):
         self.job_label.config(text="")
@@ -166,3 +193,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+# The main function creates the app window and initiates the main loop to keep it open.
+# Commenting it out would prevent the app from launching.
+# Testing: Run the script to verify the GUI loads and functions as expected.
